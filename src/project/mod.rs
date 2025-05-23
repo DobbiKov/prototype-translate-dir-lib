@@ -1,4 +1,4 @@
-use crate::{helper, project_config::LoadConfigError};
+use crate::{helper, project_config::LoadConfigError, Language};
 use std::{io::Read, path::PathBuf};
 use thiserror::Error;
 
@@ -71,6 +71,45 @@ pub fn load(path: PathBuf) -> Result<Project, LoadProjectError> {
     })
 }
 
-pub fn set_source_dir() {
-    todo!()
+#[derive(Error, Debug)]
+pub enum SetSourceDirError {
+    #[error("directory doesn't exist")]
+    DirectoryDoesNotExist,
+    #[error("incorrect path")]
+    IncorrectPath,
+    #[error("provided path is not directory")]
+    NotDirectory,
+    #[error("couldn't analyze directory {0}")]
+    AnalyzeDirError(std::io::Error),
+}
+
+impl Project {
+    pub fn get_root_path(&self) -> std::path::PathBuf {
+        self.path_to_root.clone()
+    }
+    pub fn get_config(&self) -> ProjectConfig {
+        self.config.clone()
+    }
+    /// Set source directory that the contents will be translated of
+    pub fn set_source_dir(
+        &mut self,
+        dir_name: &str,
+        lang: Language,
+    ) -> Result<(), SetSourceDirError> {
+        let full_dir_path = self.get_root_path().join(dir_name);
+        if !full_dir_path.exists() {
+            return Err(SetSourceDirError::DirectoryDoesNotExist);
+        }
+        if !full_dir_path.is_dir() {
+            return Err(SetSourceDirError::NotDirectory);
+        }
+
+        //set as src dir
+        let _ = self
+            .config
+            .set_src_dir(full_dir_path, lang)
+            .map_err(SetSourceDirError::AnalyzeDirError);
+
+        Ok(())
+    }
 }

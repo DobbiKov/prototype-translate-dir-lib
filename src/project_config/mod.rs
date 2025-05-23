@@ -25,6 +25,14 @@ pub struct LangDir {
     dir: Directory,
     language: Language,
 }
+impl LangDir {
+    pub(crate) fn new(dir: Directory, lang: Language) -> Self {
+        Self {
+            dir,
+            language: lang,
+        }
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 /// A config representation of a directory
@@ -40,9 +48,14 @@ pub struct Directory {
 }
 
 impl Directory {
-    fn new(name: &str, path: PathBuf) -> Self {
+    fn new(path: PathBuf) -> Self {
+        let name = match path.file_name() {
+            None => String::new(),
+            Some(r) => r.to_owned().into_string().unwrap_or(String::new()),
+        };
+
         Directory {
-            name: name.to_string(),
+            name,
             path,
             dirs: vec![],
             files: vec![],
@@ -69,6 +82,13 @@ impl ProjectConfig {
             src_dir: None,
         }
     }
+    pub(crate) fn set_src_dir(&mut self, dir_path: PathBuf, lang: Language) -> std::io::Result<()> {
+        let dir = build_tree(dir_path)?;
+        let lang_dir = LangDir::new(dir, lang);
+
+        self.src_dir = Some(lang_dir);
+        Ok(())
+    }
 }
 
 #[derive(Error, Debug)]
@@ -87,7 +107,7 @@ pub fn build_tree<P: AsRef<Path>>(root: P) -> std::io::Result<Directory> {
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| String::from("/"));
 
-        let mut dir = Directory::new(&name, path.to_path_buf());
+        let mut dir = Directory::new(path.to_path_buf());
 
         for entry in std::fs::read_dir(path)? {
             let entry = entry?;
