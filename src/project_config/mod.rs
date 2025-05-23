@@ -1,7 +1,8 @@
+use crate::project::InitProjectError;
 use crate::Language;
 use serde;
 use std::{
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 use thiserror::Error;
@@ -71,17 +72,11 @@ impl ProjectConfig {
 }
 
 #[derive(Error, Debug)]
-pub enum InitProjectError {
-    #[error("file creating error")]
-    FileCreatingError(std::io::Error),
-    #[error("invalid path")]
-    InvalidPath,
-    #[error("the project is already initialized")]
-    ProjectAlreadyInitialized,
-    #[error("project tree parsing error: {0}")]
-    TreeParsingError(std::io::Error),
-    #[error("serialisation error {0}")]
-    SerialisationError(String),
+pub enum LoadConfigError {
+    #[error("open config file error {0}")]
+    OpenConfigFileError(std::io::Error),
+    #[error("incorrect config file format")]
+    IncorrectConfigFileFormat,
 }
 
 /// Build a `Directory` tree rooted at `root`.
@@ -120,9 +115,7 @@ pub fn build_tree<P: AsRef<Path>>(root: P) -> std::io::Result<Directory> {
     recurse(root.as_ref())
 }
 
-// init project for translation
-// we should go through the directory recursively and parse dir-file tree
-// ideas: files_to_llm
+/// Init project config with it's file
 pub fn init(proj_name: &str, path: PathBuf) -> Result<(), InitProjectError> {
     if !path.exists() {
         return Err(InitProjectError::InvalidPath);
@@ -146,6 +139,21 @@ pub fn init(proj_name: &str, path: PathBuf) -> Result<(), InitProjectError> {
     file.write_fmt(format_args!("{}", serialized))
         .map_err(InitProjectError::FileCreatingError)?;
     Ok(())
+}
+
+pub fn load_config_from_file(path: PathBuf) -> Result<ProjectConfig, LoadConfigError> {
+    let mut conf_file = std::fs::OpenOptions::new()
+        .read(true)
+        .open(&path)
+        .map_err(LoadConfigError::OpenConfigFileError)?;
+    let mut contents = String::new();
+    let _ = conf_file
+        .read_to_string(&mut contents)
+        .map_err(LoadConfigError::OpenConfigFileError)?;
+    let conf: ProjectConfig = serde_json::from_str(contents.as_str())
+        .map_err(|_| LoadConfigError::IncorrectConfigFileFormat)?;
+
+    Ok(conf)
 }
 
 // commands
