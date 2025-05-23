@@ -12,8 +12,10 @@ use thiserror::Error;
 pub struct ProjectConfig {
     /// name for the current project
     name: String,
-    /// the directory assigned to each language
+    /// the directory assigned to each target language
     lang_dirs: Vec<LangDir>,
+    /// the master directory that the files are copied and translated from
+    src_dir: Option<LangDir>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -63,6 +65,7 @@ impl ProjectConfig {
         ProjectConfig {
             name: proj_name.to_string(),
             lang_dirs: Vec::new(),
+            src_dir: None,
         }
     }
 }
@@ -120,9 +123,12 @@ pub fn build_tree<P: AsRef<Path>>(root: P) -> std::io::Result<Directory> {
 // init project for translation
 // we should go through the directory recursively and parse dir-file tree
 // ideas: files_to_llm
-pub fn init(proj_name: &str) -> Result<(), InitProjectError> {
+pub fn init(proj_name: &str, path: PathBuf) -> Result<(), InitProjectError> {
+    if !path.exists() {
+        return Err(InitProjectError::InvalidPath);
+    }
     let config_filename = "trans_conf.json";
-    let config_file_fullpath = std::path::PathBuf::from(".").join(config_filename);
+    let config_file_fullpath = path.join(config_filename);
     if config_file_fullpath.exists() {
         return Err(InitProjectError::ProjectAlreadyInitialized);
     }
