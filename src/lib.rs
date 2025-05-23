@@ -1,4 +1,6 @@
+pub mod helper;
 pub mod lib_config;
+pub mod project;
 pub mod project_config;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
