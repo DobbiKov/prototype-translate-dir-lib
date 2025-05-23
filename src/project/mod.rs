@@ -1,6 +1,8 @@
-use crate::{helper, project_config::LoadConfigError, Language};
-use std::{io::Read, path::PathBuf};
-use thiserror::Error;
+use crate::{
+    errors::project_errors::{InitProjectError, LoadProjectError, SetSourceDirError},
+    helper, Language,
+};
+use std::path::PathBuf;
 
 use crate::project_config::ProjectConfig;
 
@@ -11,28 +13,6 @@ pub struct Project {
     path_to_root: PathBuf,
     /// Config of the project
     config: ProjectConfig,
-}
-
-#[derive(Error, Debug)]
-pub enum InitProjectError {
-    #[error("file creating error")]
-    FileCreatingError(std::io::Error),
-    #[error("invalid path")]
-    InvalidPath,
-    #[error("the project is already initialized")]
-    ProjectAlreadyInitialized,
-    #[error("project tree parsing error: {0}")]
-    TreeParsingError(std::io::Error),
-    #[error("serialisation error {0}")]
-    SerialisationError(String),
-}
-
-#[derive(Error, Debug)]
-pub enum LoadProjectError {
-    #[error("there's no config to load from")]
-    NoConfig,
-    #[error("load config error {0}")]
-    LoadConfigError(LoadConfigError),
 }
 
 /// Initialize project for translation
@@ -69,18 +49,6 @@ pub fn load(path: PathBuf) -> Result<Project, LoadProjectError> {
         path_to_root: root,
         config: conf,
     })
-}
-
-#[derive(Error, Debug)]
-pub enum SetSourceDirError {
-    #[error("directory doesn't exist")]
-    DirectoryDoesNotExist,
-    #[error("incorrect path")]
-    IncorrectPath,
-    #[error("provided path is not directory")]
-    NotDirectory,
-    #[error("couldn't analyze directory {0}")]
-    AnalyzeDirError(std::io::Error),
 }
 
 impl Project {

@@ -1,5 +1,5 @@
-use crate::project::InitProjectError;
 use crate::Language;
+use crate::{errors::project_config_errors::LoadConfigError, project::InitProjectError};
 use serde;
 use std::{
     io::{Read, Write},
@@ -89,14 +89,6 @@ impl ProjectConfig {
         self.src_dir = Some(lang_dir);
         Ok(())
     }
-}
-
-#[derive(Error, Debug)]
-pub enum LoadConfigError {
-    #[error("open config file error {0}")]
-    OpenConfigFileError(std::io::Error),
-    #[error("incorrect config file format")]
-    IncorrectConfigFileFormat,
 }
 
 /// Build a `Directory` tree rooted at `root`.

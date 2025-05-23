@@ -1,3 +1,4 @@
+pub mod errors;
 pub mod helper;
 pub mod lib_config;
 pub mod project;
