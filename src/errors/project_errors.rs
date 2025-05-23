@@ -33,3 +33,15 @@ pub enum SetSourceDirError {
     #[error("couldn't analyze directory {0}")]
     AnalyzeDirError(std::io::Error),
 }
+
+#[derive(Error, Debug)]
+pub enum AddLanguageError {
+    #[error("language already in the project")]
+    LangAlreadyInTheProj,
+    #[error("io error {0}")]
+    IoError(std::io::Error),
+    #[error("can't set translate language without source language")]
+    NoSourceLang,
+    #[error("language directory already exists")]
+    LangDirExists,
+}

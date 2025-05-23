@@ -1,3 +1,4 @@
+use crate::errors::project_errors::AddLanguageError;
 use crate::Language;
 use crate::{errors::project_config_errors::LoadConfigError, project::InitProjectError};
 use serde;
@@ -31,6 +32,9 @@ impl LangDir {
             dir,
             language: lang,
         }
+    }
+    pub(crate) fn get_lang(&self) -> Language {
+        self.language.clone()
     }
 }
 
@@ -82,11 +86,26 @@ impl ProjectConfig {
             src_dir: None,
         }
     }
+    pub(crate) fn get_name(&self) -> String {
+        self.name.clone()
+    }
+    pub(crate) fn get_src_dir_as_ref(&self) -> &Option<LangDir> {
+        &self.src_dir
+    }
+    pub(crate) fn get_lang_dirs_as_ref(&self) -> &Vec<LangDir> {
+        &self.lang_dirs
+    }
     pub(crate) fn set_src_dir(&mut self, dir_path: PathBuf, lang: Language) -> std::io::Result<()> {
         let dir = build_tree(dir_path)?;
         let lang_dir = LangDir::new(dir, lang);
 
         self.src_dir = Some(lang_dir);
+        Ok(())
+    }
+    pub(crate) fn add_lang(&mut self, dir_path: PathBuf, lang: Language) -> std::io::Result<()> {
+        let dir = build_tree(dir_path)?;
+        let lang_dir = LangDir::new(dir, lang);
+        self.lang_dirs.push(lang_dir);
         Ok(())
     }
 }

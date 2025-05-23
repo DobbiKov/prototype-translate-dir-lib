@@ -1,5 +1,7 @@
 use crate::{
-    errors::project_errors::{InitProjectError, LoadProjectError, SetSourceDirError},
+    errors::project_errors::{
+        AddLanguageError, InitProjectError, LoadProjectError, SetSourceDirError,
+    },
     helper, Language,
 };
 use std::path::PathBuf;
@@ -77,6 +79,46 @@ impl Project {
             .config
             .set_src_dir(full_dir_path, lang)
             .map_err(SetSourceDirError::AnalyzeDirError);
+
+        Ok(())
+    }
+
+    ///
+    pub fn add_lang(&mut self, lang: Language) -> Result<(), AddLanguageError> {
+        // verifying we can create a directory for the lang
+        let mut dir_name = self.get_config().get_name().clone();
+        dir_name.push_str(lang.get_dir_suffix());
+
+        let new_path = self.get_root_path().join(dir_name);
+
+        if new_path.exists() {
+            return Err(AddLanguageError::LangDirExists);
+        }
+
+        // verifying there's a source language
+        let conf = self.get_config();
+        let src_dir = match conf.get_src_dir_as_ref() {
+            Some(r) => r,
+            None => {
+                return Err(AddLanguageError::NoSourceLang);
+            }
+        };
+        let src_lang = &src_dir.get_lang();
+
+        // verifying this lang isn't in the project
+        if *src_lang == lang {
+            return Err(AddLanguageError::LangAlreadyInTheProj);
+        }
+        for lang_dir in conf.get_lang_dirs_as_ref() {
+            let t_lang = lang_dir.get_lang();
+            if t_lang == lang {
+                return Err(AddLanguageError::LangAlreadyInTheProj);
+            }
+        }
+
+        std::fs::create_dir(&new_path).map_err(AddLanguageError::IoError)?;
+
+        let _ = self.config.add_lang(new_path, lang)?;
 
         Ok(())
     }
