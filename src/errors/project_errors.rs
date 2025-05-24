@@ -56,6 +56,8 @@ pub enum SyncFilesError {
     CopyError(CopyFileDirError),
     #[error("building config error: {0}")]
     BuildingConfigError(std::io::Error),
+    #[error("config writing error {0}")]
+    ConfigWritingError(WriteConfigError),
 }
 
 #[derive(Error, Debug)]
@@ -64,4 +66,14 @@ pub enum CopyFileDirError {
     IoError(std::io::Error),
     #[error("strip path error: {0}")]
     StripPathError(StripPrefixError),
+}
+
+#[derive(Error, Debug)]
+pub enum AddTranslatableFileError {
+    #[error("can't set translate language without source language")]
+    NoSourceLang,
+    #[error("there is no such file")]
+    NoFile,
+    #[error("config writing error {0}")]
+    ConfigWritingError(WriteConfigError),
 }

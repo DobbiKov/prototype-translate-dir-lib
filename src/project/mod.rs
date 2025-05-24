@@ -1,7 +1,7 @@
 use crate::{
     errors::project_errors::{
-        AddLanguageError, CopyFileDirError, InitProjectError, LoadProjectError, SetSourceDirError,
-        SyncFilesError,
+        AddLanguageError, AddTranslatableFileError, CopyFileDirError, InitProjectError,
+        LoadProjectError, SetSourceDirError, SyncFilesError,
     },
     helper,
     project_config::{write_conf, Directory},
@@ -179,7 +179,32 @@ impl Project {
         self.config
             .analyze_lang_dirs()
             .map_err(SyncFilesError::BuildingConfigError)?;
-        write_conf(self.get_config_file_path(), &self.config);
+        write_conf(self.get_config_file_path(), &self.config)
+            .map_err(SyncFilesError::ConfigWritingError)?;
+        Ok(())
+    }
+
+    /// Makes the file by given path translatable (for the source directory)
+    pub fn make_translatable_file(
+        &mut self,
+        path: PathBuf,
+    ) -> Result<(), AddTranslatableFileError> {
+        let path = std::fs::canonicalize(path).map_err(|_| AddTranslatableFileError::NoFile)?;
+        self.config.make_translatable_file(path)?;
+        write_conf(self.get_config_file_path(), &self.config)
+            .map_err(AddTranslatableFileError::ConfigWritingError)?;
+        Ok(())
+    }
+
+    /// Makes the file by given path untranslatable (for the source directory)
+    pub fn make_untranslatable_file(
+        &mut self,
+        path: PathBuf,
+    ) -> Result<(), AddTranslatableFileError> {
+        let path = std::fs::canonicalize(path).map_err(|_| AddTranslatableFileError::NoFile)?;
+        self.config.make_untranslatable_file(path)?;
+        write_conf(self.get_config_file_path(), &self.config)
+            .map_err(AddTranslatableFileError::ConfigWritingError)?;
         Ok(())
     }
 }

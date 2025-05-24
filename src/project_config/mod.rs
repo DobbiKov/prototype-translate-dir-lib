@@ -1,6 +1,7 @@
 use crate::errors::project_config_errors::{LoadConfigError, WriteConfigError};
-use crate::errors::project_errors::InitProjectError;
+use crate::errors::project_errors::{AddTranslatableFileError, InitProjectError};
 use crate::Language;
+use queues::*;
 use serde;
 use std::{
     io::{Read, Write},
@@ -146,6 +147,68 @@ impl ProjectConfig {
         }
         Ok(())
     }
+
+    pub fn make_translatable_file(
+        &mut self,
+        path: PathBuf,
+    ) -> Result<(), AddTranslatableFileError> {
+        let mut func = |f: &mut File| {
+            f.translatable = true;
+        };
+        let src_dir = &mut match &mut self.src_dir {
+            Some(r) => r,
+            None => {
+                return Err(AddTranslatableFileError::NoSourceLang);
+            }
+        }
+        .dir;
+        let res = find_file_and_apply(src_dir, &path, &mut func);
+        match res {
+            true => Ok(()),
+            false => Err(AddTranslatableFileError::NoFile),
+        }
+    }
+
+    pub fn make_untranslatable_file(
+        &mut self,
+        path: PathBuf,
+    ) -> Result<(), AddTranslatableFileError> {
+        let mut func = |f: &mut File| {
+            f.translatable = false;
+        };
+        let src_dir = &mut match &mut self.src_dir {
+            Some(r) => r,
+            None => {
+                return Err(AddTranslatableFileError::NoSourceLang);
+            }
+        }
+        .dir;
+        let res = find_file_and_apply(src_dir, &path, &mut func);
+        match res {
+            true => Ok(()),
+            false => Err(AddTranslatableFileError::NoFile),
+        }
+    }
+}
+
+/// Searches recursively for file in the given directory and if it finds the file it applies the
+/// given function and returns true, otherwise returns false
+fn find_file_and_apply<F>(dir: &mut Directory, path: &Path, func: &mut F) -> bool
+where
+    F: FnMut(&mut File),
+{
+    for file in &mut dir.files {
+        if file.get_path() == *path {
+            (func)(file);
+            return true;
+        }
+    }
+    for sub_dir in &mut dir.dirs {
+        if find_file_and_apply(sub_dir, path, func) {
+            return true;
+        }
+    }
+    false
 }
 
 /// Build a `Directory` tree rooted at `root`.
