@@ -1,6 +1,6 @@
-use crate::errors::project_errors::AddLanguageError;
+use crate::errors::project_config_errors::{LoadConfigError, WriteConfigError};
+use crate::errors::project_errors::InitProjectError;
 use crate::Language;
-use crate::{errors::project_config_errors::LoadConfigError, project::InitProjectError};
 use serde;
 use std::{
     io::{Read, Write},
@@ -157,18 +157,24 @@ pub fn init(proj_name: &str, path: PathBuf) -> Result<(), InitProjectError> {
         return Err(InitProjectError::ProjectAlreadyInitialized);
     }
 
+    let conf = ProjectConfig::new(proj_name);
+    let _ = write_conf(config_file_fullpath, &conf).map_err(InitProjectError::ConfigWritingError);
+    Ok(())
+}
+
+pub(crate) fn write_conf(path: PathBuf, conf: &ProjectConfig) -> Result<(), WriteConfigError> {
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .truncate(true)
         .write(true)
         .read(true)
-        .open(config_file_fullpath)
-        .map_err(InitProjectError::FileCreatingError)?;
-    let conf = ProjectConfig::new(proj_name);
-    let serialized = serde_json::to_string(&conf)
-        .map_err(|e| InitProjectError::SerialisationError(e.to_string()))?;
+        .open(path)
+        .map_err(WriteConfigError::IoError)?;
+
+    let serialized = serde_json::to_string(conf)
+        .map_err(|e| WriteConfigError::SerialisationError(e.to_string()))?;
     file.write_fmt(format_args!("{}", serialized))
-        .map_err(InitProjectError::FileCreatingError)?;
+        .map_err(WriteConfigError::IoError)?;
     Ok(())
 }
 

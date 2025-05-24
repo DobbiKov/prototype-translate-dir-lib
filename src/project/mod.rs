@@ -118,7 +118,9 @@ impl Project {
 
         std::fs::create_dir(&new_path).map_err(AddLanguageError::IoError)?;
 
-        let _ = self.config.add_lang(new_path, lang)?;
+        self.config
+            .add_lang(new_path, lang)
+            .map_err(AddLanguageError::IoError)?;
 
         Ok(())
     }

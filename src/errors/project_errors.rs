@@ -1,18 +1,16 @@
 use crate::errors::project_config_errors::LoadConfigError;
 use thiserror::Error;
 
+use super::project_config_errors::WriteConfigError;
+
 #[derive(Error, Debug)]
 pub enum InitProjectError {
-    #[error("file creating error")]
-    FileCreatingError(std::io::Error),
     #[error("invalid path")]
     InvalidPath,
     #[error("the project is already initialized")]
     ProjectAlreadyInitialized,
-    #[error("project tree parsing error: {0}")]
-    TreeParsingError(std::io::Error),
-    #[error("serialisation error {0}")]
-    SerialisationError(String),
+    #[error("config writing error {0}")]
+    ConfigWritingError(WriteConfigError),
 }
 
 #[derive(Error, Debug)]
