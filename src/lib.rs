@@ -3,6 +3,7 @@ pub mod helper;
 pub mod lib_config;
 pub mod project;
 pub mod project_config;
+pub mod translator;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum Language {
