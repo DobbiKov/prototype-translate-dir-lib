@@ -3,12 +3,31 @@
 //!
 //!
 
+use std::io::Write;
+
 use crate::helper::{divide_into_chunks, extract_translated_from_response, read_string_file};
 use google_genai::datatypes::{Content, GenerateContentParameters, Part};
 use tokio::runtime::Runtime;
 
 fn get_prompt() -> String {
     read_string_file("/Users/dobbikov/Desktop/stage/prompts/prompt3")
+}
+
+pub fn translate_file_to_file(
+    from_path: impl Into<std::path::PathBuf>,
+    to_path: impl Into<std::path::PathBuf>,
+) -> std::io::Result<()> {
+    let contents = translate_file(from_path);
+    let to_path: std::path::PathBuf = to_path.into();
+
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(to_path)?;
+
+    file.write_fmt(format_args!("{}", contents))?;
+    Ok(())
 }
 
 pub fn translate_file(path: impl Into<std::path::PathBuf>) -> String {
