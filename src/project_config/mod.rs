@@ -36,6 +36,12 @@ impl LangDir {
     pub(crate) fn get_lang(&self) -> Language {
         self.language.clone()
     }
+    pub(crate) fn get_dir_as_ref(&self) -> &Directory {
+        &self.dir
+    }
+    pub(crate) fn set_dir(&mut self, dir: Directory) {
+        self.dir = dir;
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -65,6 +71,18 @@ impl Directory {
             files: vec![],
         }
     }
+    pub(crate) fn get_dir_name(&self) -> String {
+        self.name.clone()
+    }
+    pub(crate) fn get_path(&self) -> PathBuf {
+        self.path.clone()
+    }
+    pub(crate) fn get_files_as_ref(&self) -> &Vec<File> {
+        &self.files
+    }
+    pub(crate) fn get_dirs_as_ref(&self) -> &Vec<Directory> {
+        &self.dirs
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -76,6 +94,18 @@ pub struct File {
     path: PathBuf,
     /// if the file is translatable (false is not, true if it is)
     translatable: bool,
+}
+
+impl File {
+    pub(crate) fn get_name(&self) -> String {
+        self.name.clone()
+    }
+    pub(crate) fn get_path(&self) -> PathBuf {
+        self.path.clone()
+    }
+    pub(crate) fn is_translatable(&self) -> bool {
+        self.translatable
+    }
 }
 
 impl ProjectConfig {
@@ -106,6 +136,14 @@ impl ProjectConfig {
         let dir = build_tree(dir_path)?;
         let lang_dir = LangDir::new(dir, lang);
         self.lang_dirs.push(lang_dir);
+        Ok(())
+    }
+    pub(crate) fn analyze_lang_dirs(&mut self) -> std::io::Result<()> {
+        for dir in &mut self.lang_dirs {
+            let path = dir.get_dir_as_ref().get_path();
+            let tree = build_tree(path)?;
+            dir.set_dir(tree);
+        }
         Ok(())
     }
 }

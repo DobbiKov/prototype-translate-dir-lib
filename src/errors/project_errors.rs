@@ -1,3 +1,5 @@
+use std::path::StripPrefixError;
+
 use crate::errors::project_config_errors::LoadConfigError;
 use thiserror::Error;
 
@@ -42,4 +44,24 @@ pub enum AddLanguageError {
     NoSourceLang,
     #[error("language directory already exists")]
     LangDirExists,
+}
+
+#[derive(Error, Debug)]
+pub enum SyncFilesError {
+    #[error("can't set translate language without source language")]
+    NoSourceLang,
+    #[error("no languages to translate into")]
+    NoTransLangs,
+    #[error("copy error: {0}")]
+    CopyError(CopyFileDirError),
+    #[error("building config error: {0}")]
+    BuildingConfigError(std::io::Error),
+}
+
+#[derive(Error, Debug)]
+pub enum CopyFileDirError {
+    #[error("io error: {0}")]
+    IoError(std::io::Error),
+    #[error("strip path error: {0}")]
+    StripPathError(StripPrefixError),
 }

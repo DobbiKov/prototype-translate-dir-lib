@@ -1,10 +1,13 @@
 use crate::{
     errors::project_errors::{
-        AddLanguageError, InitProjectError, LoadProjectError, SetSourceDirError,
+        AddLanguageError, CopyFileDirError, InitProjectError, LoadProjectError, SetSourceDirError,
+        SyncFilesError,
     },
-    helper, Language,
+    helper,
+    project_config::{write_conf, Directory},
+    Language,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::project_config::ProjectConfig;
 
@@ -54,11 +57,33 @@ pub fn load(path: PathBuf) -> Result<Project, LoadProjectError> {
 }
 
 impl Project {
+    /// returns the path to the root folder of the project
     pub fn get_root_path(&self) -> std::path::PathBuf {
         self.path_to_root.clone()
     }
+    /// return the config
     pub fn get_config(&self) -> ProjectConfig {
         self.config.clone()
+    }
+    pub fn get_config_as_ref(&self) -> &ProjectConfig {
+        &self.config
+    }
+    /// returns the path to the config file
+    fn get_config_file_path(&self) -> PathBuf {
+        self.get_root_path().join("trans_conf.json")
+    }
+
+    /// returns source language in an option or None if the source directory with a language isn't set
+    fn get_src_lang(&self) -> Option<Language> {
+        let conf = self.get_config();
+        let src_dir = match conf.get_src_dir_as_ref() {
+            Some(r) => r,
+            None => {
+                return None;
+            }
+        };
+        let src_lang = &src_dir.get_lang();
+        Some(src_lang.clone())
     }
     /// Set source directory that the contents will be translated of
     pub fn set_source_dir(
@@ -80,10 +105,11 @@ impl Project {
             .set_src_dir(full_dir_path, lang)
             .map_err(SetSourceDirError::AnalyzeDirError);
 
+        let _ = write_conf(self.get_config_file_path(), &self.get_config());
         Ok(())
     }
 
-    ///
+    /// adds a language that the source directory will be translated into
     pub fn add_lang(&mut self, lang: Language) -> Result<(), AddLanguageError> {
         // verifying we can create a directory for the lang
         let mut dir_name = self.get_config().get_name().clone();
@@ -97,16 +123,10 @@ impl Project {
 
         // verifying there's a source language
         let conf = self.get_config();
-        let src_dir = match conf.get_src_dir_as_ref() {
-            Some(r) => r,
-            None => {
-                return Err(AddLanguageError::NoSourceLang);
-            }
-        };
-        let src_lang = &src_dir.get_lang();
+        let src_lang = self.get_src_lang().ok_or(AddLanguageError::NoSourceLang)?;
 
         // verifying this lang isn't in the project
-        if *src_lang == lang {
+        if src_lang == lang {
             return Err(AddLanguageError::LangAlreadyInTheProj);
         }
         for lang_dir in conf.get_lang_dirs_as_ref() {
@@ -122,6 +142,89 @@ impl Project {
             .add_lang(new_path, lang)
             .map_err(AddLanguageError::IoError)?;
 
+        let _ = write_conf(self.get_config_file_path(), &self.get_config());
+
         Ok(())
     }
+
+    // TODO: add result
+    pub fn sync_files(&mut self) -> Result<(), SyncFilesError> {
+        let src_lang = self.get_src_lang().ok_or(SyncFilesError::NoSourceLang)?;
+        let conf = self.get_config_as_ref();
+        let lang_dirs = conf.get_lang_dirs_as_ref();
+        if lang_dirs.is_empty() {
+            return Err(SyncFilesError::NoTransLangs);
+        }
+
+        let lang_dirs_names: Vec<String> = lang_dirs
+            .iter()
+            .map(|e| e.get_dir_as_ref().get_dir_name())
+            .collect();
+
+        let src_dir = conf.get_src_dir_as_ref();
+        let src_dir_name = if let Some(l_dir) = src_dir {
+            l_dir.get_dir_as_ref().get_dir_name()
+        } else {
+            panic!("impossible case")
+        };
+
+        let lang_src_dir = src_dir.clone().unwrap();
+        let src_dir = lang_src_dir.get_dir_as_ref();
+
+        // copy files
+        for d_name in lang_dirs_names {
+            copy_untranslatable_files(&self.get_root_path(), &src_dir_name, &d_name, src_dir)
+                .map_err(SyncFilesError::CopyError)?;
+        }
+        self.config
+            .analyze_lang_dirs()
+            .map_err(SyncFilesError::BuildingConfigError)?;
+        write_conf(self.get_config_file_path(), &self.config);
+        Ok(())
+    }
+}
+
+pub fn copy_untranslatable_files(
+    root_path: &Path,
+    from_name: &str,
+    to_name: &str,
+    from_structure: &Directory,
+) -> Result<(), CopyFileDirError> {
+    let from_dir = root_path.clone().join(from_name);
+    let to_dir = root_path.clone().join(to_name);
+    copy_untranslatable_files_rec(&from_dir, &to_dir, from_structure)
+}
+
+fn copy_untranslatable_files_rec(
+    from_dir: &Path,
+    to_dir: &Path,
+    dir: &Directory,
+) -> Result<(), CopyFileDirError> {
+    for file in dir.get_files_as_ref() {
+        if file.is_translatable() {
+            continue;
+        }
+        let full_path = file.get_path();
+        let relative_path = full_path
+            .strip_prefix(from_dir)
+            .map_err(CopyFileDirError::StripPathError)?
+            .to_path_buf();
+
+        let new_path = to_dir.join(relative_path);
+        let _ = std::fs::copy(full_path, new_path);
+    }
+    for sub_dir in dir.get_dirs_as_ref() {
+        let full_path = sub_dir.get_path();
+        let relative_path = full_path
+            .strip_prefix(from_dir)
+            .map_err(CopyFileDirError::StripPathError)?
+            .to_path_buf();
+
+        let new_path = to_dir.join(relative_path);
+        if !&new_path.exists() {
+            std::fs::create_dir(new_path).map_err(CopyFileDirError::IoError)?;
+        }
+        copy_untranslatable_files_rec(from_dir, to_dir, sub_dir)?;
+    }
+    Ok(())
 }
