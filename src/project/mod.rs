@@ -1,7 +1,7 @@
 use crate::{
     errors::project_errors::{
-        AddLanguageError, AddTranslatableFileError, CopyFileDirError, InitProjectError,
-        LoadProjectError, SetSourceDirError, SyncFilesError,
+        AddLanguageError, AddTranslatableFileError, CopyFileDirError, GetTranslatableFilesError,
+        InitProjectError, LoadProjectError, SetSourceDirError, SyncFilesError,
     },
     helper,
     project_config::{write_conf, Directory},
@@ -206,6 +206,17 @@ impl Project {
         write_conf(self.get_config_file_path(), &self.config)
             .map_err(AddTranslatableFileError::ConfigWritingError)?;
         Ok(())
+    }
+
+    /// Returns a list of files of the source directory that are translatable
+    pub fn get_translatable_files(&self) -> Result<Vec<PathBuf>, GetTranslatableFilesError> {
+        let src_lang = match self.get_src_lang() {
+            None => {
+                return Err(GetTranslatableFilesError::NoSourceLang);
+            }
+            Some(s) => s,
+        };
+        self.config.get_translatable_files()
     }
 }
 

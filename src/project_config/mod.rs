@@ -1,5 +1,7 @@
 use crate::errors::project_config_errors::{LoadConfigError, WriteConfigError};
-use crate::errors::project_errors::{AddTranslatableFileError, InitProjectError};
+use crate::errors::project_errors::{
+    AddTranslatableFileError, GetTranslatableFilesError, InitProjectError,
+};
 use crate::Language;
 use queues::*;
 use serde;
@@ -188,6 +190,26 @@ impl ProjectConfig {
             true => Ok(()),
             false => Err(AddTranslatableFileError::NoFile),
         }
+    }
+    pub fn get_translatable_files(&self) -> Result<Vec<PathBuf>, GetTranslatableFilesError> {
+        let mut res = Vec::<PathBuf>::new();
+        let mut queue = Queue::<&Directory>::new();
+        let src_dir = match &self.src_dir {
+            Some(d) => &d.dir,
+            None => return Err(GetTranslatableFilesError::NoSourceLang),
+        }; //verified that it exists upper
+        let _ = queue.add(src_dir);
+        while let Ok(dir) = queue.remove() {
+            for file in &dir.files {
+                if file.is_translatable() {
+                    res.push(file.get_path());
+                }
+            }
+            for sub_dir in &dir.dirs {
+                let _ = queue.add(sub_dir);
+            }
+        }
+        Ok(res)
     }
 }
 

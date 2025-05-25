@@ -77,3 +77,9 @@ pub enum AddTranslatableFileError {
     #[error("config writing error {0}")]
     ConfigWritingError(WriteConfigError),
 }
+
+#[derive(Error, Debug)]
+pub enum GetTranslatableFilesError {
+    #[error("can't set translate language without source language")]
+    NoSourceLang,
+}
