@@ -128,6 +128,19 @@ impl ProjectConfig {
     pub(crate) fn get_lang_dirs_as_ref(&self) -> &Vec<LangDir> {
         &self.lang_dirs
     }
+    pub(crate) fn get_src_dir_path(&self) -> Option<PathBuf> {
+        self.src_dir
+            .as_ref()
+            .map(|dir| dir.get_dir_as_ref().get_path())
+    }
+    pub(crate) fn get_tgt_dir_path_by_lang(&self, lang: &Language) -> Option<PathBuf> {
+        for dir in &self.lang_dirs {
+            if dir.get_lang() == *lang {
+                return Some(dir.get_dir_as_ref().get_path());
+            }
+        }
+        None
+    }
     pub(crate) fn set_src_dir(&mut self, dir_path: PathBuf, lang: Language) -> std::io::Result<()> {
         let dir = build_tree(dir_path)?;
         let lang_dir = LangDir::new(dir, lang);

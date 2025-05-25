@@ -32,6 +32,8 @@ pub enum SetSourceDirError {
     NotDirectory,
     #[error("couldn't analyze directory {0}")]
     AnalyzeDirError(std::io::Error),
+    #[error("language already in the project")]
+    LangAlreadyInTheProj,
 }
 
 #[derive(Error, Debug)]
@@ -82,4 +84,21 @@ pub enum AddTranslatableFileError {
 pub enum GetTranslatableFilesError {
     #[error("can't set translate language without source language")]
     NoSourceLang,
+}
+#[derive(Error, Debug)]
+pub enum TranslateFileError {
+    #[error("no source language to translate from")]
+    NoSourceLang,
+    #[error("no languages to translate into")]
+    NoTransLangs,
+    #[error("such file doesn't exist")]
+    FileNotExist,
+    #[error("file is untranslatable")]
+    UntranslatableFile,
+    #[error("couldnd't load translatable files")]
+    TranslatableFilesError(GetTranslatableFilesError),
+    #[error("there's no such target language")]
+    TargetLanguageNotInProject,
+    #[error("io error: {0}")]
+    IoError(std::io::Error),
 }

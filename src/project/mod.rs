@@ -1,7 +1,7 @@
 use crate::{
     errors::project_errors::{
         AddLanguageError, AddTranslatableFileError, CopyFileDirError, GetTranslatableFilesError,
-        InitProjectError, LoadProjectError, SetSourceDirError, SyncFilesError,
+        InitProjectError, LoadProjectError, SetSourceDirError, SyncFilesError, TranslateFileError,
     },
     helper,
     project_config::{write_conf, Directory},
@@ -85,6 +85,14 @@ impl Project {
         let src_lang = &src_dir.get_lang();
         Some(src_lang.clone())
     }
+    /// returns all the target languages from config
+    fn get_tgt_langs(&self) -> Vec<Language> {
+        let conf = self.get_config();
+        conf.get_lang_dirs_as_ref()
+            .iter()
+            .map(|e| e.get_lang())
+            .collect()
+    }
     /// Set source directory that the contents will be translated of
     pub fn set_source_dir(
         &mut self,
@@ -97,6 +105,21 @@ impl Project {
         }
         if !full_dir_path.is_dir() {
             return Err(SetSourceDirError::NotDirectory);
+        }
+
+        let src_lang_op = self.get_src_lang();
+
+        // verifying this lang isn't in the project
+        if let Some(src_lang) = src_lang_op {
+            if src_lang == lang {
+                return Err(SetSourceDirError::LangAlreadyInTheProj);
+            }
+        }
+        for lang_dir in self.config.get_lang_dirs_as_ref() {
+            let t_lang = lang_dir.get_lang();
+            if t_lang == lang {
+                return Err(SetSourceDirError::LangAlreadyInTheProj);
+            }
         }
 
         //set as src dir
@@ -147,7 +170,7 @@ impl Project {
         Ok(())
     }
 
-    // TODO: add result
+    /// Syncing untranslatable files from the source directory to the target directories
     pub fn sync_files(&mut self) -> Result<(), SyncFilesError> {
         let src_lang = self.get_src_lang().ok_or(SyncFilesError::NoSourceLang)?;
         let conf = self.get_config_as_ref();
@@ -218,6 +241,54 @@ impl Project {
         };
         self.config.get_translatable_files()
     }
+
+    /// Makes the file by given path untranslatable (for the source directory)
+    pub fn translate_file(&self, path: PathBuf, lang: Language) -> Result<(), TranslateFileError> {
+        let path = std::fs::canonicalize(path).map_err(|_| TranslateFileError::FileNotExist)?;
+
+        let src_lang = match self.get_src_lang() {
+            None => {
+                return Err(TranslateFileError::NoSourceLang);
+            }
+            Some(s) => s,
+        };
+        let tgt_langs = self.get_tgt_langs();
+        if !tgt_langs.contains(&lang) {
+            return Err(TranslateFileError::TargetLanguageNotInProject);
+        }
+
+        let trans_files = self
+            .get_translatable_files()
+            .map_err(TranslateFileError::TranslatableFilesError)?;
+
+        if !trans_files.contains(&path) {
+            return Err(TranslateFileError::UntranslatableFile);
+        }
+
+        // get new path in tgt_dir
+        translate_file_helper(&path, &self.config, &lang)
+    }
+}
+
+/// Helper function to translate a file to a _lang_ language.
+fn translate_file_helper(
+    path: &PathBuf,
+    conf: &ProjectConfig,
+    lang: &Language,
+) -> Result<(), TranslateFileError> {
+    if !path.exists() || !path.is_file() {
+        return Err(TranslateFileError::FileNotExist);
+    }
+
+    let src_dir_path = conf.get_src_dir_path().unwrap();
+    let tgt_lang_path = conf.get_tgt_dir_path_by_lang(lang).unwrap();
+    let relative_path = path
+        .strip_prefix(src_dir_path)
+        .map_err(|_| TranslateFileError::FileNotExist)?;
+    let new_path = tgt_lang_path.join(relative_path);
+    crate::translator::translate_file_to_file(path, new_path, lang)
+        .map_err(TranslateFileError::IoError)?;
+    Ok(())
 }
 
 pub fn copy_untranslatable_files(
@@ -226,8 +297,8 @@ pub fn copy_untranslatable_files(
     to_name: &str,
     from_structure: &Directory,
 ) -> Result<(), CopyFileDirError> {
-    let from_dir = root_path.clone().join(from_name);
-    let to_dir = root_path.clone().join(to_name);
+    let from_dir = root_path.join(from_name);
+    let to_dir = root_path.join(to_name);
     copy_untranslatable_files_rec(&from_dir, &to_dir, from_structure)
 }
 
