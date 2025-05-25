@@ -103,6 +103,8 @@ pub async fn ask_gemini_model(message: String) -> String {
         .cloned() // we finally need an owned String
         .unwrap_or_default(); // or .ok_or(MyError::MissingText)? for Result<T,E>
 
+    println!("answer:\n\n");
+    println!("{}", &text);
     return text;
     String::new()
 }

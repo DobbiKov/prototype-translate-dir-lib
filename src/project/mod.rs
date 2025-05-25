@@ -268,6 +268,17 @@ impl Project {
         // get new path in tgt_dir
         translate_file_helper(&path, &self.config, &lang)
     }
+
+    /// Translates all translatable files
+    pub fn translate_all(&self, lang: Language) -> Result<(), TranslateFileError> {
+        let trans_files = self
+            .get_translatable_files()
+            .map_err(TranslateFileError::TranslatableFilesError)?;
+        for file in &trans_files {
+            translate_file_helper(file, &self.config, &lang)?;
+        }
+        Ok(())
+    }
 }
 
 /// Helper function to translate a file to a _lang_ language.
