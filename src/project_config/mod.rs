@@ -154,6 +154,17 @@ impl ProjectConfig {
         self.lang_dirs.push(lang_dir);
         Ok(())
     }
+    pub(crate) fn remove_lang(&mut self, lang: Language) {
+        let mut idx: Option<usize> = None;
+        for (temp_id, l_dir) in self.lang_dirs.iter().enumerate() {
+            if l_dir.get_lang() == lang {
+                idx = Some(temp_id);
+            }
+        }
+        if let Some(id) = idx {
+            self.lang_dirs.remove(id);
+        }
+    }
     pub(crate) fn analyze_lang_dirs(&mut self) -> std::io::Result<()> {
         for dir in &mut self.lang_dirs {
             let path = dir.get_dir_as_ref().get_path();

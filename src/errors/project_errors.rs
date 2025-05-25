@@ -49,6 +49,16 @@ pub enum AddLanguageError {
 }
 
 #[derive(Error, Debug)]
+pub enum RemoveLangaugeError {
+    #[error("io error {0}")]
+    IoError(std::io::Error),
+    #[error("language directory does not exist")]
+    LangDirDoesNotExist,
+    #[error("there's no such target language")]
+    TargetLanguageNotInProject,
+}
+
+#[derive(Error, Debug)]
 pub enum SyncFilesError {
     #[error("can't set translate language without source language")]
     NoSourceLang,

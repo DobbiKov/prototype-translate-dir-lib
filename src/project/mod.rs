@@ -1,7 +1,8 @@
 use crate::{
     errors::project_errors::{
         AddLanguageError, AddTranslatableFileError, CopyFileDirError, GetTranslatableFilesError,
-        InitProjectError, LoadProjectError, SetSourceDirError, SyncFilesError, TranslateFileError,
+        InitProjectError, LoadProjectError, RemoveLangaugeError, SetSourceDirError, SyncFilesError,
+        TranslateFileError,
     },
     helper,
     project_config::{write_conf, Directory},
@@ -167,6 +168,24 @@ impl Project {
 
         let _ = write_conf(self.get_config_file_path(), &self.get_config());
 
+        Ok(())
+    }
+
+    /// removes the given language from the target languages and removes it's directory
+    pub fn remove_lang(&mut self, lang: Language) -> Result<(), RemoveLangaugeError> {
+        let tgt_lang_path = match self.config.get_tgt_dir_path_by_lang(&lang).as_ref() {
+            None => return Err(RemoveLangaugeError::TargetLanguageNotInProject),
+            Some(r) => r.to_path_buf(),
+        };
+
+        if !tgt_lang_path.exists() || !tgt_lang_path.is_dir() {
+            return Err(RemoveLangaugeError::LangDirDoesNotExist);
+        }
+
+        self.config.remove_lang(lang);
+
+        let _ = write_conf(self.get_config_file_path(), &self.get_config());
+        std::fs::remove_dir_all(&tgt_lang_path).map_err(RemoveLangaugeError::IoError)?;
         Ok(())
     }
 
