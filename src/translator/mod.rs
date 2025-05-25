@@ -5,19 +5,29 @@
 
 use std::io::Write;
 
-use crate::helper::{divide_into_chunks, extract_translated_from_response, read_string_file};
+use crate::{
+    helper::{divide_into_chunks, extract_translated_from_response, read_string_file},
+    Language,
+};
 use google_genai::datatypes::{Content, GenerateContentParameters, Part};
 use tokio::runtime::Runtime;
 
-fn get_prompt() -> String {
+fn get_default_prompt() -> String {
     read_string_file("/Users/dobbikov/Desktop/stage/prompts/prompt3")
+}
+
+pub(crate) fn put_lang_into_prompt(prompt: &str, lang: &Language) -> String {
+    let lang_str: &str = (*lang).clone().into();
+
+    prompt.replace("[TARGET_LANGUAGE]", lang_str)
 }
 
 pub fn translate_file_to_file(
     from_path: impl Into<std::path::PathBuf>,
     to_path: impl Into<std::path::PathBuf>,
+    tgt_lang: &Language,
 ) -> std::io::Result<()> {
-    let contents = translate_file(from_path);
+    let contents = translate_file(from_path, tgt_lang);
     let to_path: std::path::PathBuf = to_path.into();
 
     let mut file = std::fs::OpenOptions::new()
@@ -30,28 +40,29 @@ pub fn translate_file_to_file(
     Ok(())
 }
 
-pub fn translate_file(path: impl Into<std::path::PathBuf>) -> String {
+pub fn translate_file(path: impl Into<std::path::PathBuf>, tgt_lang: &Language) -> String {
     let path: std::path::PathBuf = path.into();
     let contents = read_string_file(path);
-    translate_contents(&contents)
+    translate_contents(&contents, tgt_lang)
 }
 
-pub fn translate_contents(contents: &str) -> String {
+pub fn translate_contents(contents: &str, tgt_lang: &Language) -> String {
     let mut res = String::new();
 
     const LINES_PER_CHUNK: usize = 100;
 
     let chunks = divide_into_chunks(contents.to_string(), LINES_PER_CHUNK);
     for chunk in chunks {
-        let tr_ch = translate_chunk(&chunk);
+        let tr_ch = translate_chunk(&chunk, tgt_lang);
         res.push_str(&tr_ch);
     }
     res
 }
 
-pub fn translate_chunk(contents: &str) -> String {
+pub fn translate_chunk(contents: &str, tgt_lang: &Language) -> String {
     let mut fin_mess = String::new();
-    fin_mess.push_str(&get_prompt());
+    let prompt = put_lang_into_prompt(&get_default_prompt(), tgt_lang);
+    fin_mess.push_str(&prompt);
     fin_mess.push_str("<document>");
     fin_mess.push_str(contents);
     fin_mess.push_str("\n</document>");
