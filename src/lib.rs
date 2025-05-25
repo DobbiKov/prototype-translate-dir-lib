@@ -4,8 +4,11 @@ pub mod lib_config;
 pub mod project;
 pub mod project_config;
 pub mod translator;
+#[cfg(feature = "cli_support")]
+use clap::ValueEnum;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "cli_support", derive(ValueEnum))]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum Language {
     French,
     English,
