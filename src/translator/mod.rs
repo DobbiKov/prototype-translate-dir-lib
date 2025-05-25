@@ -13,7 +13,7 @@ use google_genai::datatypes::{Content, GenerateContentParameters, Part};
 use tokio::runtime::Runtime;
 
 fn get_default_prompt() -> String {
-    read_string_file("/Users/dobbikov/Desktop/stage/prompts/prompt3")
+    read_string_file("/Users/dobbikov/Desktop/stage/prompts/prompt4")
 }
 
 pub(crate) fn put_lang_into_prompt(prompt: &str, lang: &Language) -> String {
@@ -49,7 +49,7 @@ pub fn translate_file(path: impl Into<std::path::PathBuf>, tgt_lang: &Language) 
 pub fn translate_contents(contents: &str, tgt_lang: &Language) -> String {
     let mut res = String::new();
 
-    const LINES_PER_CHUNK: usize = 100;
+    const LINES_PER_CHUNK: usize = 50;
 
     let chunks = divide_into_chunks(contents.to_string(), LINES_PER_CHUNK);
     for chunk in chunks {

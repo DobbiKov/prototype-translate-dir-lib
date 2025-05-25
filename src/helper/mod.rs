@@ -61,9 +61,10 @@ pub fn extract_translated_from_response(message: String) -> String {
         return String::new();
     }
     let mut res = String::new();
-    let mut chunks_iter = message.split("<output>\n");
+    let mut chunks_iter = message.split("<output>");
     let _ = chunks_iter.next();
     while let Some(chunk) = chunks_iter.next() {
+        let chunk = chunk.strip_prefix("\n").unwrap_or(chunk);
         let mut chunk_string = chunk;
 
         if chunk_string.contains("</output>") {

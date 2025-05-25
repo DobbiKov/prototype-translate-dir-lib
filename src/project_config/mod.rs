@@ -36,10 +36,10 @@ impl LangDir {
             language: lang,
         }
     }
-    pub(crate) fn get_lang(&self) -> Language {
+    pub fn get_lang(&self) -> Language {
         self.language.clone()
     }
-    pub(crate) fn get_dir_as_ref(&self) -> &Directory {
+    pub fn get_dir_as_ref(&self) -> &Directory {
         &self.dir
     }
     pub(crate) fn set_dir(&mut self, dir: Directory) {
@@ -74,16 +74,16 @@ impl Directory {
             files: vec![],
         }
     }
-    pub(crate) fn get_dir_name(&self) -> String {
+    pub fn get_dir_name(&self) -> String {
         self.name.clone()
     }
-    pub(crate) fn get_path(&self) -> PathBuf {
+    pub fn get_path(&self) -> PathBuf {
         self.path.clone()
     }
-    pub(crate) fn get_files_as_ref(&self) -> &Vec<File> {
+    pub fn get_files_as_ref(&self) -> &Vec<File> {
         &self.files
     }
-    pub(crate) fn get_dirs_as_ref(&self) -> &Vec<Directory> {
+    pub fn get_dirs_as_ref(&self) -> &Vec<Directory> {
         &self.dirs
     }
 }
@@ -100,13 +100,13 @@ pub struct File {
 }
 
 impl File {
-    pub(crate) fn get_name(&self) -> String {
+    pub fn get_name(&self) -> String {
         self.name.clone()
     }
-    pub(crate) fn get_path(&self) -> PathBuf {
+    pub fn get_path(&self) -> PathBuf {
         self.path.clone()
     }
-    pub(crate) fn is_translatable(&self) -> bool {
+    pub fn is_translatable(&self) -> bool {
         self.translatable
     }
 }
@@ -119,21 +119,21 @@ impl ProjectConfig {
             src_dir: None,
         }
     }
-    pub(crate) fn get_name(&self) -> String {
+    pub fn get_name(&self) -> String {
         self.name.clone()
     }
-    pub(crate) fn get_src_dir_as_ref(&self) -> &Option<LangDir> {
+    pub fn get_src_dir_as_ref(&self) -> &Option<LangDir> {
         &self.src_dir
     }
-    pub(crate) fn get_lang_dirs_as_ref(&self) -> &Vec<LangDir> {
+    pub fn get_lang_dirs_as_ref(&self) -> &Vec<LangDir> {
         &self.lang_dirs
     }
-    pub(crate) fn get_src_dir_path(&self) -> Option<PathBuf> {
+    pub fn get_src_dir_path(&self) -> Option<PathBuf> {
         self.src_dir
             .as_ref()
             .map(|dir| dir.get_dir_as_ref().get_path())
     }
-    pub(crate) fn get_tgt_dir_path_by_lang(&self, lang: &Language) -> Option<PathBuf> {
+    pub fn get_tgt_dir_path_by_lang(&self, lang: &Language) -> Option<PathBuf> {
         for dir in &self.lang_dirs {
             if dir.get_lang() == *lang {
                 return Some(dir.get_dir_as_ref().get_path());
@@ -294,7 +294,7 @@ pub fn build_tree<P: AsRef<Path>>(root: P) -> std::io::Result<Directory> {
 }
 
 /// Init project config with it's file
-pub fn init(proj_name: &str, path: PathBuf) -> Result<(), InitProjectError> {
+pub(crate) fn init(proj_name: &str, path: PathBuf) -> Result<(), InitProjectError> {
     if !path.exists() {
         return Err(InitProjectError::InvalidPath);
     }
@@ -325,7 +325,7 @@ pub(crate) fn write_conf(path: PathBuf, conf: &ProjectConfig) -> Result<(), Writ
     Ok(())
 }
 
-pub fn load_config_from_file(path: PathBuf) -> Result<ProjectConfig, LoadConfigError> {
+pub(crate) fn load_config_from_file(path: PathBuf) -> Result<ProjectConfig, LoadConfigError> {
     let mut conf_file = std::fs::OpenOptions::new()
         .read(true)
         .open(&path)
