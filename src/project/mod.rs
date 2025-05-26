@@ -8,7 +8,11 @@ use crate::{
     project_config::{write_conf, Directory},
     Language,
 };
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    thread,
+    time::Duration,
+};
 
 use crate::project_config::ProjectConfig;
 
@@ -318,6 +322,7 @@ fn translate_file_helper(
     let new_path = tgt_lang_path.join(relative_path);
     crate::translator::translate_file_to_file(path, new_path, lang)
         .map_err(TranslateFileError::IoError)?;
+    thread::sleep(Duration::from_secs(8));
     Ok(())
 }
 

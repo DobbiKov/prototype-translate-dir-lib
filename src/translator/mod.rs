@@ -3,7 +3,7 @@
 //!
 //!
 
-use std::io::Write;
+use std::{io::Write, thread, time::Duration};
 
 use crate::{
     helper::{divide_into_chunks, extract_translated_from_response, read_string_file},
@@ -89,6 +89,7 @@ pub async fn ask_gemini_model(message: String) -> String {
         .contents(params.contents.unwrap())
         .model(params.model.unwrap());
 
+    thread::sleep(Duration::from_secs(5));
     let response = google_genai::generate_content(&api_key, request)
         .await
         .unwrap();
