@@ -2,7 +2,7 @@ use crate::{
     errors::project_errors::{
         AddLanguageError, AddTranslatableFileError, CopyFileDirError, GetTranslatableFilesError,
         InitProjectError, LoadProjectError, RemoveLangaugeError, SetSourceDirError, SyncFilesError,
-        TranslateFileError,
+        TranslateFileError, UpdateSourceDirConfig,
     },
     helper,
     project_config::{write_conf, Directory},
@@ -301,6 +301,11 @@ impl Project {
             translate_file_helper(file, &self.config, &lang)?;
         }
         Ok(())
+    }
+
+    /// Updates source directory structure (if for example it has been changed since the initialization of the project)
+    pub fn update_project_structure(&mut self) -> Result<(), UpdateSourceDirConfig> {
+        self.config.update_source_dir_config()
     }
 }
 

@@ -112,3 +112,11 @@ pub enum TranslateFileError {
     #[error("io error: {0}")]
     IoError(std::io::Error),
 }
+
+#[derive(Error, Debug)]
+pub enum UpdateSourceDirConfig {
+    #[error("no source language to translate from")]
+    NoSourceLang,
+    #[error("couldn't analyze directory {0}")]
+    AnalyzeDirError(std::io::Error),
+}

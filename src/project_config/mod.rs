@@ -1,10 +1,11 @@
 use crate::errors::project_config_errors::{LoadConfigError, WriteConfigError};
 use crate::errors::project_errors::{
-    AddTranslatableFileError, GetTranslatableFilesError, InitProjectError,
+    AddTranslatableFileError, GetTranslatableFilesError, InitProjectError, UpdateSourceDirConfig,
 };
 use crate::Language;
 use queues::*;
 use serde;
+use std::collections::HashMap;
 use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -235,6 +236,25 @@ impl ProjectConfig {
         }
         Ok(res)
     }
+
+    /// Updates a config file according to the source directory structure
+    pub fn update_source_dir_config(&mut self) -> Result<(), UpdateSourceDirConfig> {
+        let src_dir_lang = self
+            .get_src_dir_as_ref()
+            .as_ref()
+            .ok_or(UpdateSourceDirConfig::NoSourceLang)?;
+
+        let old_dir = src_dir_lang.get_dir_as_ref();
+        let new_dir =
+            build_tree(old_dir.get_path()).map_err(UpdateSourceDirConfig::AnalyzeDirError)?;
+
+        let res_dir = compare_and_submit_dir_structs(old_dir, &new_dir);
+        self.src_dir = Some(LangDir {
+            dir: res_dir,
+            language: src_dir_lang.get_lang(),
+        });
+        Ok(())
+    }
 }
 
 /// Searches recursively for file in the given directory and if it finds the file it applies the
@@ -340,7 +360,47 @@ pub(crate) fn load_config_from_file(path: PathBuf) -> Result<ProjectConfig, Load
     Ok(conf)
 }
 
-// commands
-//pub fn add_lang_dir(dir_name: &str, lang: Language) -> Result<(), Box<dyn std::error::Error>> {
-//    todo!()
-//}
+/// Compares old directory structure and new one and returns the merge of both. If it encounters a
+/// file or a directory in both structures, it keeps the one from the old structure, if it
+/// encounters a directory or a file present in the new structure but not in the old, it will add
+/// it to the result.
+fn compare_and_submit_dir_structs(old_dir: &Directory, new_dir: &Directory) -> Directory {
+    let mut new_model = Directory::new(new_dir.get_path().to_path_buf());
+
+    // --- Process Files ---
+    // Create a HashMap of old files for efficient lookup
+    let old_files_map: HashMap<PathBuf, &File> = old_dir
+        .files
+        .iter()
+        .map(|f| -> (PathBuf, &File) { (f.get_path(), f) })
+        .collect();
+
+    for new_file in &new_dir.files {
+        // Check if the new_file's path exists in the old_files_map
+        if let Some(old_file_to_keep) = old_files_map.get(&new_file.get_path()) {
+            // If found in old structure, keep the old one
+            new_model.files.push((*old_file_to_keep).clone());
+        } else {
+            // If it's a new file, add it
+            new_model.files.push(new_file.clone());
+        }
+    }
+
+    // --- Process Subdirectories ---
+    // Create a HashMap of old subdirectories for efficient lookup
+    let old_dirs_map: HashMap<PathBuf, &Directory> =
+        old_dir.dirs.iter().map(|d| (d.get_path(), d)).collect();
+
+    for new_subdir in &new_dir.dirs {
+        if let Some(old_subdir_to_compare) = old_dirs_map.get(&new_subdir.get_path()) {
+            // If found in old structure, analyze recursively
+            let res_subdir = compare_and_submit_dir_structs(old_subdir_to_compare, new_subdir);
+            new_model.dirs.push(res_subdir);
+        } else {
+            // If it's a new directory, add it
+            new_model.dirs.push(new_subdir.clone());
+        }
+    }
+
+    new_model
+}
