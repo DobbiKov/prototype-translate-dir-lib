@@ -9,6 +9,7 @@ use crate::{
     Language,
 };
 use std::{
+    collections::HashSet,
     path::{Path, PathBuf},
     thread,
     time::Duration,
@@ -196,6 +197,10 @@ impl Project {
     /// Syncing untranslatable files from the source directory to the target directories
     pub fn sync_files(&mut self) -> Result<(), SyncFilesError> {
         let src_lang = self.get_src_lang().ok_or(SyncFilesError::NoSourceLang)?;
+
+        self.update_project_structure()
+            .map_err(SyncFilesError::UpdateStructureError)?;
+
         let conf = self.get_config_as_ref();
         let lang_dirs = conf.get_lang_dirs_as_ref();
         if lang_dirs.is_empty() {
@@ -219,6 +224,12 @@ impl Project {
 
         // copy files
         for d_name in lang_dirs_names {
+            remove_files_not_in_source_dir(
+                &src_dir.get_path(),
+                &self.get_root_path().join(&d_name),
+                src_dir,
+            )
+            .map_err(SyncFilesError::RemoveUntrackedError)?;
             copy_untranslatable_files(&self.get_root_path(), &src_dir_name, &d_name, src_dir)
                 .map_err(SyncFilesError::CopyError)?;
         }
@@ -373,5 +384,85 @@ fn copy_untranslatable_files_rec(
         }
         copy_untranslatable_files_rec(from_dir, to_dir, sub_dir)?;
     }
+    Ok(())
+}
+
+/// Verifies and removes all the files and directories in the target directory that are not in the source directory.
+///
+/// - `from_dir_path`: The actual disk path of the current source directory being considered
+///   (e.g., initially /path/to/project/src_en, then /path/to/project/src_en/subdir1, etc.).
+/// - `to_dir_path`: The actual disk path of the current target directory being considered
+///   (e.g., initially /path/to/project/target_fr, then /path/to/project/target_fr/subdir1, etc.).
+/// - `source_dir_model`: The DirectoryModel representing the structure within `from_dir_path`.
+///   Names within this model are relative to the current `from_dir_path`.
+pub fn remove_files_not_in_source_dir(
+    from_dir_path: &Path, // Path to the corresponding directory in the source structure
+    to_dir_path: &Path,   // Path to the target directory to clean up
+    source_dir_model: &Directory,
+) -> std::io::Result<()> {
+    // Collect names from the source model for efficient lookup.
+    // These names are expected to be simple file/directory names, not paths.
+    let model_file_names: HashSet<String> = source_dir_model
+        .get_files_as_ref()
+        .iter()
+        .map(|f| f.get_name())
+        .collect();
+
+    let model_dir_names: HashSet<String> = source_dir_model
+        .get_dirs_as_ref()
+        .iter()
+        .map(|d| d.get_dir_name())
+        .collect();
+
+    // Iterate over entries in the target directory on disk.
+    for entry_result in std::fs::read_dir(to_dir_path)? {
+        let entry = entry_result?;
+        let entry_path = entry.path();
+        let entry_name_os = entry.file_name(); // This is an OsString
+
+        let entry_name_cow = entry_name_os.to_string_lossy();
+        let entry_name_str = entry_name_cow.as_ref();
+
+        let symlink_meta = std::fs::symlink_metadata(&entry_path)?;
+
+        if symlink_meta.is_dir() {
+            // Is an actual directory (not a symlink to one)
+            if !model_dir_names.contains(entry_name_str) {
+                // Directory exists in target but not in source model: remove it.
+                if !symlink_meta.is_symlink() {
+                    std::fs::remove_dir_all(&entry_path)?;
+                }
+            } else if !symlink_meta.is_symlink() {
+                // Directory exists in both target and source model: recurse.
+                // Find the corresponding Directory for this subdirectory.
+                if let Some(sub_dir_model) = source_dir_model
+                    .get_dirs_as_ref()
+                    .iter()
+                    .find(|dm| dm.get_dir_name() == entry_name_str)
+                {
+                    let next_from_dir_path = from_dir_path.join(&entry_name_os);
+                    remove_files_not_in_source_dir(
+                        &next_from_dir_path,
+                        &entry_path,
+                        sub_dir_model,
+                    )?;
+                } else {
+                    // This case should ideally not be reached if model_dir_names.contains was true
+                    // and get_dir_name() is consistent. Could indicate an issue or duplicate names.
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        format!("Logic error: DirectoryModel for '{}' not found despite being in name set.", entry_name_str)
+                    ));
+                }
+            }
+        } else if symlink_meta.is_file() {
+            // Is an actual file (not a symlink to one)
+            if !model_file_names.contains(entry_name_str) {
+                // File exists in target but not in source model: remove it.
+                std::fs::remove_file(&entry_path)?;
+            }
+        }
+    }
+
     Ok(())
 }

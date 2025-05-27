@@ -68,8 +68,12 @@ pub enum SyncFilesError {
     CopyError(CopyFileDirError),
     #[error("building config error: {0}")]
     BuildingConfigError(std::io::Error),
+    #[error("remove untracked files error: {0}")]
+    RemoveUntrackedError(std::io::Error),
     #[error("config writing error {0}")]
     ConfigWritingError(WriteConfigError),
+    #[error("update structure error {0}")]
+    UpdateStructureError(UpdateSourceDirConfig),
 }
 
 #[derive(Error, Debug)]
